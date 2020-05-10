@@ -1,4 +1,5 @@
 import {Disassembler} from '../js/disassembler.js';
+import { CPU } from './interpreter.js';
 
 export class Main {
 
@@ -36,5 +37,6 @@ export class Main {
     
     postLoad() {
         this.disassembler = new Disassembler(this.arrayBuffer);
+        this.cpu = new CPU(this.arrayBuffer);
     };
 }
