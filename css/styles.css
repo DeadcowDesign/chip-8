@@ -49,9 +49,6 @@ tr {
     overflow: scroll;
 }
 
-.CPU {
-
-}
 .memory {
     width: 32em;
     display: grid;

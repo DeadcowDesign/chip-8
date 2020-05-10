@@ -32,19 +32,19 @@ console.log(p2);
 export class CPU {
 	constructor(arrayBuffer) {
 
-		this.arrayBuffer = arrayBuffer || null;
+		this.ArrayBuffer = arrayBuffer || null;
 
 		// Memory 4 kilobytes (4096 bytes). Note that programs should be loaded
 		// in from address 0x200 - some programs start at 0x600 (TODO: how to 
 		// tell the difference?)
-		this.memory = new Uint8Array(4096);
+		this.Memory = new Uint8Array(4096);
 
 		// Registers - 16 8-bit registers labelled Vx where x = hex register
 		// value 0-f
-		this.registers = new Uint8Array(16);
+		this.Registers = new Uint8Array(16);
 
 		// Stack
-		this.stack = new Uint16Array(16);
+		this.Stack = new Uint16Array(16);
 
 		// Special register I
 		this.I = 0x00;
@@ -67,12 +67,12 @@ export class CPU {
 		// return to from a sub-function
 		this.SP = 0x00;
 
-		this.currentInstruction = 0x0000;
-		this.instructionMask = 0xF000;
+		this.CurrentInstruction = 0x0000;
+		this.InstructionMask = 0xF000;
 
-		this.memoryDisplay = document.getElementById("memory");
+		this.MemoryDisplay = document.getElementById("memory");
 
-		this.audio = new AudioContext();
+		this.Audio = new AudioContext();
 
 		this.chars();
 		this.loadProgram();
@@ -108,7 +108,7 @@ export class CPU {
 		];
 
 		for (let i = 0x00; i < sprites.length; i++) {
-			this.memory[i] = sprites[i];
+			this.Memory[i] = sprites[i];
 		}
 	}
 
@@ -116,38 +116,38 @@ export class CPU {
 
 		let progMem = 0x200;
 
-		for (let i = 0; i < this.arrayBuffer.length; i++) {
-			this.memory[progMem] = this.arrayBuffer[i];
-			progMem ++;
+		for (let i = 0; i < this.ArrayBuffer.length; i++) {
+			this.Memory[progMem] = this.ArrayBuffer[i];
+			progMem++;
 		}
 	}
 
 	displayMemory() {
-		for (let i = 0; i < this.memory.length; i++) {
+		for (let i = 0; i < this.Memory.length; i++) {
 			let cell = document.createElement('span');
 			cell.setAttribute("id", i.toString(16).padStart(2, "0"));
 			cell.setAttribute("title", i.toString(16).padStart(2, "0"));
-			cell.innerText = this.memory[i].toString(16).padStart(2, "0");
-			if (this.PC == i) {cell.style.backgroundColor = "#ccc";}
-			this.memoryDisplay.appendChild(cell);
+			cell.innerText = this.Memory[i].toString(16).padStart(2, "0");
+			if (this.PC == i) { cell.style.backgroundColor = "#ccc"; }
+			this.MemoryDisplay.appendChild(cell);
 		}
 	}
 
 	run() {
 
-		while(this.doInstruction()) {
-			this.PC ++;
+		while (this.doInstruction()) {
+			this.PC++;
 		}
 	}
 
 	doInstruction() {
-		if (this.PC%2 == 0) {
-			this.currentInstruction = this.memory[this.PC];
+		if (this.PC % 2 == 0) {
+			this.CurrentInstruction = this.Memory[this.PC];
 		} else {
-			this.currentInstruction = (this.currentInstruction << 8 | this.memory[this.PC]);
+			this.CurrentInstruction = (this.CurrentInstruction << 8 | this.Memory[this.PC]);
 		}
 
-		if (this.PC < this.memory.length) {
+		if (this.PC < this.Memory.length) {
 			return true;
 		}
 
@@ -156,22 +156,22 @@ export class CPU {
 
 	doSound(time) {
 		this.SR = time;
-	
-		while(this.SR > 0) {
+
+		while (this.SR > 0) {
 
 		}
 	}
 
 	beep(vol, freq, duration) {
-		oscillator = this.audio.createOscillator()
-		gain = this.audio.createGain()
+		oscillator = this.Audio.createOscillator()
+		gain = this.Audio.createGain()
 		oscillator.connect(gain)
 		oscillator.frequency.value = freq
 		oscillator.type = "square"
-		gain.connect(this.audio.destination)
-		gain.gain.value=vol*0.01
-		oscillator.start(this.audio.currentTime)
-		oscillator.stop(this.audio.currentTime+duration*0.001)
+		gain.connect(this.Audio.destination)
+		gain.gain.value = vol * 0.01
+		oscillator.start(this.Audio.currentTime)
+		oscillator.stop(this.Audio.currentTime + duration * 0.001)
 	}
 
 	/***************************************************************************
@@ -180,33 +180,35 @@ export class CPU {
  	* function all functions are prefixed with an _
  	***************************************************************************/
 
- 	/**
- 	 * 0nnn - SYS addr
-	 * Jump to a machine code routine at nnn.
-	 * This instruction is only used on the old computers on which Chip-8 was
-	 * originally implemented. It is ignored by modern interpreters.
- 	 */
- 	_0nnn(nnn) {
- 		console.log(this.name);
- 	}
-
- 	/**
- 	 * 00E0 - CLS
-	 * Clear the display.
- 	 */
- 	_00E0() {
-		 // TODO - attach to display
- 		console.log(this.name);
- 	}
-
- 	/**
- 	 * 00EE - RET
-	 * Return from a subroutine.
-	 *
-	 * The interpreter sets the program counter to the address at the top of the stack, then subtracts 1 from the stack pointer.
+	/**
+	 * 0nnn - SYS addr
+   * Jump to a machine code routine at nnn.
+   * This instruction is only used on the old computers on which Chip-8 was
+   * originally implemented. It is ignored by modern interpreters.
 	 */
+	_0000(nnn) {
+		return;
+	}
+
+	/**
+	 * 00E0 - CLS
+   * Clear the display.
+	 */
+	_00E0() {
+		// TODO - attach to display
+		console.log(this.name);
+	}
+
+	/**
+	 * 00EE - RET
+   * Return from a subroutine.
+   *
+   * The interpreter sets the program counter to the address at the top of the stack, 
+   * then subtracts 1 from the stack pointer.
+   */
 	_00EE() {
- 		console.log(this.name);
+		this.PC = this.Stack(this.SP);
+		this.SP--;
 	}
 
 	/**
@@ -215,20 +217,24 @@ export class CPU {
 	 *
 	 * The interpreter sets the program counter to nnn.
 	 */
-	 _1000(nnn){
- 		console.log(this.name);
-	 }
+	_1000(bytes) {
+		let nnn = bytes & 0x0FFF;
+		this.PC = nnn;
+	}
 
 	/**
 	 * 2nnn - CALL addr
 	 * Call subroutine at nnn.
 	 *
-	 * The interpreter increments the stack pointer, then puts the current PC on the top of the stack. The PC is then set to nnn.
+	 * The interpreter increments the stack pointer, then puts the current PC on the top of the stack. 
+	 * The PC is then set to nnn.
 	 */
-	 _2000(nnn){
-		console.log(this.name);
-
-	 }
+	_2000(bytes) {
+		let nnn = bytes & 0x0FFF;
+		this.SP++;
+		this.Stack[SP] = this.PC;
+		this.PC = nnn;
+	}
 
 	/**
 	 * 3xkk - SE Vx, byte
@@ -236,8 +242,11 @@ export class CPU {
 	 *
 	 * The interpreter compares register Vx to kk, and if they are equal, increments PC by 2.
 	 */
-	 _3000(bytes){
-	 	console.log(this.name);
+	_3000(bytes) {
+		let Vx = this.Registers[(bytes & 0x0FFF) >> 8];
+		let byte = bytes & 0x000F;
+
+		if (Vx === byte) this.PC += 2;
 	}
 
 	/**
@@ -246,26 +255,40 @@ export class CPU {
 	 *
 	 * The interpreter compares register Vx to kk, and if they are not equal, increments PC by 2.
 	 */
-	 _4000(bytes){
-	 	console.log(this.name);
-	 }
+	_4000(bytes) {
+
+		let Vx = this.Registers[(bytes & 0x0FFF) >> 8];
+		let byte = bytes & 0x000F;
+
+		if (Vx !== byte) this.PC += 2; console.log(this.name);
+	}
 
 	/**
 	 * 5xy0 - SE Vx, Vy
 	 * Skip next instruction if Vx = Vy.
 	 *
-	 * The interpreter compares register Vx to register Vy, and if they are equal, increments the program counter by 2.
+	 * The interpreter compares register Vx to register Vy, 
+	 * and if they are equal, increments the program counter by 2.
 	 */
-	 _5000(bytes){}
+	_5000(bytes) {
+
+		let Vx = this.Registers[(bytes & 0x0F00) >> 8];
+		let Vy = this.Registers[(bytes & 0x00F0) >> 4];
+
+		if (Vx === Vy) this.PC += 2;
+	}
+
 	/**
 	 * 6xkk - LD Vx, byte
 	 * Set Vx = kk.
 	 *
 	 * The interpreter puts the value kk into register Vx.
 	 */
-	 _6000(bytes){
-	 	console.log(this.name);
-	 }
+	_6000(bytes) {
+		let Vx = (bytes & 0x0F00) >> 8;
+		let byte = (bytes & 0x00FF);
+		this.Registers[Vx] = byte;
+	}
 
 	/**
 	 * 7xkk - ADD Vx, byte
@@ -273,9 +296,11 @@ export class CPU {
 	 *
 	 * Adds the value kk to the value of register Vx, then stores the result in Vx.
 	 */
-	 _7000(bytes){
-	 	console.log(this.name);
-	 }
+	_7000(bytes) {
+		let Vx = this.Registers[(bytes & 0x0F00) >> 8];
+		let kk = (bytes & 0x00FF);
+		this.Registers[Vx] = Vx + kk;
+	}
 
 	/**
 	 * 8xy0 - LD Vx, Vy
@@ -283,67 +308,94 @@ export class CPU {
 	 *
 	 * Stores the value of register Vy in register Vx.
 	 */
-	 _8000(bytes){
-	 	console.log(this.name);
-	 }
+	_8000(bytes) {
+		let Vx = (bytes & 0x0F00) >> 8;
+		let Vy = this.Registers[(bytes & 0x00F0) >> 4];
+		this.Registers[Vx] = [Vy];
+	}
 
 	/**
 	 * 8xy1 - OR Vx, Vy
 	 * Set Vx = Vx OR Vy.
 	 *
-	 * Performs a bitwise OR on the values of Vx and Vy, then stores the result in Vx. A bitwise OR compares the corrseponding bits from two values, and if either bit is 1, then the same bit in the result is also 1. Otherwise, it is 0.
+	 * Performs a bitwise OR on the values of Vx and Vy, then stores the result in Vx. 
+	 * A bitwise OR compares the corrseponding bits from two values, and if either bit is 1, 
+	 * then the same bit in the result is also 1. Otherwise, it is 0.
 	 */
-	 _8001(bytes){
-	 	console.log(this.name);
-	 }
+	_8001(bytes) {
+		let Vx = (bytes & 0x0F00) >> 8;
+		let Vy = (bytes & 0x00F0) >> 4;
+
+		this.Registers[Vx] = Vx | Vy;
+	}
 
 	/**
 	 * 8xy2 - AND Vx, Vy
 	 * Set Vx = Vx AND Vy.
 	 *
-	 * Performs a bitwise AND on the values of Vx and Vy, then stores the result in Vx. A bitwise AND compares the corrseponding bits from two values, and if both bits are 1, then the same bit in the result is also 1. Otherwise, it is 0.
+	 * Performs a bitwise AND on the values of Vx and Vy, then stores the result in Vx.
+	 * A bitwise AND compares the corrseponding bits from two values, and if both bits are 1,
+	 * then the same bit in the result is also 1. Otherwise, it is 0.
 	 */
-	 _8002(bytes){
-	 	console.log(this.name);
-	 }
+	_8002(bytes) {
+		let Vx = (bytes & 0x0F00) >> 8;
+		let Vy = (bytes & 0x00F0) >> 4;
+
+		this.Registers[Vx] = Vx & Vy;
+	}
 
 	/**
 	 * 8xy3 - XOR Vx, Vy
 	 * Set Vx = Vx XOR Vy.
 	 *
-	 * Performs a bitwise exclusive OR on the values of Vx and Vy, then stores the result in Vx. An exclusive OR compares the corrseponding bits from two values, and if the bits are not both the same, then the corresponding bit in the result is set to 1. Otherwise, it is 0.
+	 * Performs a bitwise exclusive OR on the values of Vx and Vy, then stores the result in Vx. 
+	 * An exclusive OR compares the corrseponding bits from two values, and if the bits are not 
+	 * both the same, then the corresponding bit in the result is set to 1. Otherwise, it is 0.
 	 */
-	_8003(bytes){
-		console.log(this.name);
+	_8003(bytes) {
+		let Vx = (bytes & 0x0F00) >> 8;
+		let Vy = (bytes & 0x00F0) >> 4;
+
+		this.Registers[Vx] = Vx ^ Vy;
 	}
 
 	/**
 	 * 8xy4 - ADD Vx, Vy
 	 * Set Vx = Vx + Vy, set VF = carry.
 	 *
-	 * The values of Vx and Vy are added together. If the result is greater than 8 bits (i.e., > 255,) VF is set to 1, otherwise 0. Only the lowest 8 bits of the result are kept, and stored in Vx.
+	 * The values of Vx and Vy are added together. If the result is greater than 8 bits (i.e., > 255,) 
+	 * VF is set to 1, otherwise 0. Only the lowest 8 bits of the result are kept, and stored in Vx.
 	 */
-	 _8004(bytes){
-	 	console.log(this.name);
-	 }
+	_8004(bytes) {
+		let Vx = (bytes & 0x0F00) >> 8;
+		let Vy = (bytes & 0x00F0) >> 4;
+
+		this.Registers[0xF] = (Vx + Vy) >> 8;
+		this.Registers[Vx] = (Vx + Vy) & 0x00F;
+	}
 
 	/**
 	 * 8xy5 - SUB Vx, Vy
 	 * Set Vx = Vx - Vy, set VF = NOT borrow.
 	 *
-	 * If Vx > Vy, then VF is set to 1, otherwise 0. Then Vy is subtracted from Vx, and the results stored in Vx.
+	 * If Vx > Vy, then VF is set to 1, otherwise 0. 
+	 * Then Vy is subtracted from Vx, and the results stored in Vx.
 	 */
-	 _8005(bytes){
-	 	console.log(this.name);
-	 }
+	_8005(bytes) {
+		let Vx = (bytes & 0x0F00) >> 8;
+		let Vy = (bytes & 0x0F00) >> 4;
+
+		this.Registers[0xF] = Vx > Vy ? 1 : 0;
+	}
 
 	/**
 	 * 8xy6 - SHR Vx {, Vy}
 	 * Set Vx = Vx SHR 1.
 	 *
-	 * If the least-significant bit of Vx is 1, then VF is set to 1, otherwise 0. Then Vx is divided by 2.
+	 * If the least-significant bit of Vx is 1, then VF is set to 1, otherwise 0.
+	 * Then Vx is divided by 2.
 	 */
-	_8006(bytes){
+	_8006(bytes) {
 		console.log(this.name);
 	}
 
@@ -351,11 +403,15 @@ export class CPU {
 	 * 8xy7 - SUBN Vx, Vy
 	 * Set Vx = Vy - Vx, set VF = NOT borrow.
 
-	 * If Vy > Vx, then VF is set to 1, otherwise 0. Then Vx is subtracted from Vy, and the results stored in Vx.
+	 * If Vy > Vx, then VF is set to 1, otherwise 0. 
+	 * Then Vx is subtracted from Vy, and the results stored in Vx.
 	 */
-	 _8007(bytes){
-	 	console.log(this.name);
-	 }
+	_8007(bytes) {
+		let Vx = (bytes & 0x0F00) >> 8;
+		let Vy = (bytes & 0x00F0) >> 4;
+
+		console.log(this.name);
+	}
 
 	/**
 	 * 8xyE - SHL Vx {, Vy}
@@ -363,9 +419,9 @@ export class CPU {
 	 *
 	 * If the most-significant bit of Vx is 1, then VF is set to 1, otherwise to 0. Then Vx is multiplied by 2.
 	 */
-	 _800E(bytes){
-	 	console.log(this.name);
-	 }
+	_800E(bytes) {
+		console.log(this.name);
+	}
 
 	/**
 	 * 9xy0 - SNE Vx, Vy
@@ -373,7 +429,7 @@ export class CPU {
 	 *
 	 * The values of Vx and Vy are compared, and if they are not equal, the program counter is increased by 2.
 	 */
-	_9000(bytes){
+	_9000(bytes) {
 		console.log(this.name);
 	}
 
@@ -383,9 +439,9 @@ export class CPU {
 
 	 * The value of register I is set to nnn.
 	 */
-	 _A000(bytes){
-	 	console.log(this.name);
-	 }
+	_A000(bytes) {
+		console.log(this.name);
+	}
 
 	/**
 	 * Bnnn - JP V0, addr
@@ -393,7 +449,7 @@ export class CPU {
 	 *
 	 * The program counter is set to nnn plus the value of V0.
 	 */
-	_B000(bytes){
+	_B000(bytes) {
 		console.log(this.name);
 	}
 
@@ -405,9 +461,9 @@ export class CPU {
 	 * which is then ANDed with the value kk. The results are stored in Vx. 
 	 * See instruction 8xy2 for more information on AND.
 	 */
-	 _C000(bytes){
-	 	console.log(this.name);
-	 }
+	_C000(bytes) {
+		console.log(this.name);
+	}
 
 	/**
 	 * Dxyn - DRW Vx, Vy, nibble
@@ -421,9 +477,9 @@ export class CPU {
 	 * See instruction 8xy3 for more information on XOR, and section 2.4, Display, for more information 
 	 * on the Chip-8 screen and sprites.
 	 */
-	 _D000(bytes){
-	 	console.log(this.name);
-	 }
+	_D000(bytes) {
+		console.log(this.name);
+	}
 
 	/**
 	 * Ex9E - SKP Vx
@@ -432,19 +488,20 @@ export class CPU {
 	 * Checks the keyboard, and if the key corresponding to the value of Vx is 
 	 * currently in the down position, PC is increased by 2.
 	 */
-	 _E09E(bytes){
-	 	console.log(this.name);
-	 }
+	_E09E(bytes) {
+		console.log(this.name);
+	}
 
 	/**
 	 * ExA1 - SKNP Vx
 	 * Skip next instruction if key with the value of Vx is not pressed.
 	 *
-	 * Checks the keyboard, and if the key corresponding to the value of Vx is currently in the up position, PC is increased by 2.
+	 * Checks the keyboard, and if the key corresponding to the value of Vx is currently in the up position, 
+	 * PC is increased by 2.
 	 */
-	 _E0A1(bytes){
-	 	console.log(this.name);
-	 }
+	_E0A1(bytes) {
+		console.log(this.name);
+	}
 
 	/**
 	 * Fx07 - LD Vx, DT
@@ -452,9 +509,9 @@ export class CPU {
 	 *
 	 * The value of DT is placed into Vx.
 	 */
-	 _F007(bytes){
-	 	console.log(this.name);
-	 }
+	_F007(bytes) {
+		console.log(this.name);
+	}
 
 	/**
 	 * Fx0A - LD Vx, K
@@ -462,9 +519,9 @@ export class CPU {
 	 *
 	 * All execution stops until a key is pressed, then the value of that key is stored in Vx.
 	 */
-	 _F00A(bytes){
-	 	console.log(this.name);
-	 }
+	_F00A(bytes) {
+		console.log(this.name);
+	}
 
 	/**
 	 * Fx15 - LD DT, Vx
@@ -472,9 +529,10 @@ export class CPU {
 	 *
 	 * DT is set equal to the value of Vx.
 	 */
-	 _F015(bytes){
-	 	console.log(this.name);
-	 }
+	_F015(bytes) {
+
+		console.log(this.name);
+	}
 
 	/**
 	 * Fx18 - LD ST, Vx
@@ -482,9 +540,9 @@ export class CPU {
 	 *
 	 * ST is set equal to the value of Vx.
 	 */
-	 _F018(bytes){
-	 	console.log(this.name);
-	 }
+	_F018(bytes) {
+		console.log(this.name);
+	}
 
 	/**
 	 * Fx1E - ADD I, Vx
@@ -492,9 +550,9 @@ export class CPU {
 	 *
 	 * The values of I and Vx are added, and the results are stored in I.
 	 */
-	 _F01E(bytes){
-	 	console.log(this.name);
-	 }
+	_F01E(bytes) {
+		console.log(this.name);
+	}
 
 	/**
 	 * Fx29 - LD F, Vx
@@ -503,9 +561,9 @@ export class CPU {
 	 * The value of I is set to the location for the hexadecimal sprite corresponding to the value of Vx. 
 	 * See section 2.4, Display, for more information on the Chip-8 hexadecimal font.
 	 */
-	 _F029(bytes){
-	 	console.log(this.name);
-	 }
+	_F029(bytes) {
+		console.log(this.name);
+	}
 
 	/**
 	 * Fx33 - LD B, Vx
@@ -514,9 +572,9 @@ export class CPU {
 	 * The interpreter takes the decimal value of Vx, and places the hundreds digit in 
 	 * memory at location in I, the tens digit at location I+1, and the ones digit at location I+2.
 	 */
-	 _F033(bytes){
-	 	console.log(this.name);
-	 }
+	_F033(bytes) {
+		console.log(this.name);
+	}
 
 	/**
 	 * Fx55 - LD [I], Vx
@@ -524,9 +582,9 @@ export class CPU {
 	 *
 	 * The interpreter copies the values of registers V0 through Vx into memory, starting at the address in I.
 	 */
-	 _F055(bytes){
-	 	console.log(this.name);
-	 }
+	_F055(bytes) {
+		console.log(this.name);
+	}
 
 	/**
 	 * Fx65 - LD Vx, [I]
@@ -535,7 +593,7 @@ export class CPU {
 	 * The interpreter reads values from memory starting at location I into registers V0 through Vx.
 	 *
 	 */
-	_F065(bytes){
+	_F065(bytes) {
 		console.log(this.name);
 	}
 }
