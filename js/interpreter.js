@@ -243,10 +243,10 @@ export class CPU {
 	 * The interpreter compares register Vx to kk, and if they are equal, increments PC by 2.
 	 */
 	_3000(bytes) {
-		let Vx = this.Registers[(bytes & 0x0FFF) >> 8];
-		let byte = bytes & 0x000F;
+		let Vx = this.Registers[(bytes & 0x0F00) >> 8];
+		let nn = bytes & 0x00FF;
 
-		if (Vx === byte) this.PC += 2;
+		if (Vx === nn) this.PC += 2;
 	}
 
 	/**
@@ -257,10 +257,10 @@ export class CPU {
 	 */
 	_4000(bytes) {
 
-		let Vx = this.Registers[(bytes & 0x0FFF) >> 8];
-		let byte = bytes & 0x000F;
+		let Vx = this.Registers[(bytes & 0x0F00) >> 8];
+		let nn = bytes & 0x00FF;
 
-		if (Vx !== byte) this.PC += 2; console.log(this.name);
+		if (Vx !== nn) this.PC += 2; console.log(this.name);
 	}
 
 	/**
@@ -286,8 +286,8 @@ export class CPU {
 	 */
 	_6000(bytes) {
 		let Vx = (bytes & 0x0F00) >> 8;
-		let byte = (bytes & 0x00FF);
-		this.Registers[Vx] = byte;
+		let kk = (bytes & 0x00FF);
+		this.Registers[Vx] = kk;
 	}
 
 	/**
@@ -303,124 +303,112 @@ export class CPU {
 	}
 
 	/**
-	 * 8xy0 - LD Vx, Vy
-	 * Set Vx = Vy.
-	 *
-	 * Stores the value of register Vy in register Vx.
+	 * _8xyX - series of math options for registers. Last nibble is an option
+	 * code corresponding to the operation to be performed within the 8xxx subset.
+	 * All operation results are stored in Vx.
+	 * @param {Hex} bytes 
 	 */
 	_8000(bytes) {
-		let Vx = (bytes & 0x0F00) >> 8;
+
+		let option = bytes & 0x000F;
+		let VxPointer = (bytes & 0x0F00) >> 8;
+		let Vx = this.Registers[(bytes & 0x0F00) >> 8];
 		let Vy = this.Registers[(bytes & 0x00F0) >> 4];
-		this.Registers[Vx] = [Vy];
-	}
 
-	/**
-	 * 8xy1 - OR Vx, Vy
-	 * Set Vx = Vx OR Vy.
-	 *
-	 * Performs a bitwise OR on the values of Vx and Vy, then stores the result in Vx. 
-	 * A bitwise OR compares the corrseponding bits from two values, and if either bit is 1, 
-	 * then the same bit in the result is also 1. Otherwise, it is 0.
-	 */
-	_8001(bytes) {
-		let Vx = (bytes & 0x0F00) >> 8;
-		let Vy = (bytes & 0x00F0) >> 4;
+		switch (option) {
+			/**
+			 * 8xy0 - LD Vx, Vy
+			 * Set Vx = Vy.
+			 *
+			 * Stores the value of register Vy in register Vx.
+			 */
+			case 0x0:
+				this.Registers[VxPointer] = Vy;
+				break;
+			/**
+			 * 8xy1 - OR Vx, Vy
+			 * Set Vx = Vx OR Vy.
+			 *
+			 * Performs a bitwise OR on the values of Vx and Vy, then stores the result in Vx. 
+			 * A bitwise OR compares the corrseponding bits from two values, and if either bit is 1, 
+			 * then the same bit in the result is also 1. Otherwise, it is 0.
+			 */
+			case 0x1:
+				this.Registers[VxPointer] = Vx | Vy;
+				break;
+			/**
+			 * 8xy2 - AND Vx, Vy
+			 * Set Vx = Vx AND Vy.
+			 *
+			 * Performs a bitwise AND on the values of Vx and Vy, then stores the result in Vx.
+			 * A bitwise AND compares the corrseponding bits from two values, and if both bits are 1,
+			 * then the same bit in the result is also 1. Otherwise, it is 0.
+			 */
+			case 0x2:
+				this.Registers[VxPointer] = Vx & Vy;
+				break;
+			/**
+			 * 8xy3 - XOR Vx, Vy
+			 * Set Vx = Vx XOR Vy.
+			 *
+			 * Performs a bitwise exclusive OR on the values of Vx and Vy, then stores the result in Vx. 
+			 * An exclusive OR compares the corrseponding bits from two values, and if the bits are not 
+			 * both the same, then the corresponding bit in the result is set to 1. Otherwise, it is 0.
+			 */
+			case 0x3:
+				this.Registers[VxPointer] = Vx ^ Vy;
+				break;
+			/**
+			 * 8xy4 - ADD Vx, Vy
+			 * Set Vx = Vx + Vy, set VF = carry.
+			 *
+			 * The values of Vx and Vy are added together. If the result is greater than 8 bits (i.e., > 255,) 
+			 * VF is set to 1, otherwise 0. Only the lowest 8 bits of the result are kept, and stored in Vx.
+			 */
+			case 0x4:
+				this.Registers[0xF] = (Vx + Vy) >> 8;
+				this.Registers[VxPointer] = (Vx + Vy) & 0x0FF;
+				break;
+			/**
+			 * 8xy5 - SUB Vx, Vy
+			 * Set Vx = Vx - Vy, set VF = NOT borrow.
+			 *
+			 * If Vx > Vy, then VF is set to 1, otherwise 0. 
+			 * Then Vy is subtracted from Vx, and the results stored in Vx.
+			 */
+			case 0x5:
+				this.Registers[0xF] = Vx > Vy ? 1 : 0;
+				break;
+			/**
+			 * 8xy6 - SHR Vx {, Vy}
+			 * Set Vx = Vx SHR 1.
+			 *
+			 * If the least-significant bit of Vx is 1, then VF is set to 1, otherwise 0.
+			 * Then Vx is divided by 2.
+			 */
+			case 0x6:
+				break;
+			/**
+			* 8xy7 - SUBN Vx, Vy
+			* Set Vx = Vy - Vx, set VF = NOT borrow.
+			* If Vy > Vx, then VF is set to 1, otherwise 0. 
+			* Then Vx is subtracted from Vy, and the results stored in Vx.
+			*/
+			case 0x7:
+				break;
+			/**
+			 * 8xyE - SHL Vx {, Vy}
+			 * Set Vx = Vx SHL 1.
+			 *
+			 * If the most-significant bit of Vx is 1, then VF is set to 1, otherwise to 0. Then Vx is multiplied by 2.
+			 */
+			case 0xE:
+				break;
+			default:
+				throw new Error("Invalid Opcode out of bounds: 8nnX - X must be 0x0-0x7 or 0xE");
+				
+		}
 
-		this.Registers[Vx] = Vx | Vy;
-	}
-
-	/**
-	 * 8xy2 - AND Vx, Vy
-	 * Set Vx = Vx AND Vy.
-	 *
-	 * Performs a bitwise AND on the values of Vx and Vy, then stores the result in Vx.
-	 * A bitwise AND compares the corrseponding bits from two values, and if both bits are 1,
-	 * then the same bit in the result is also 1. Otherwise, it is 0.
-	 */
-	_8002(bytes) {
-		let Vx = (bytes & 0x0F00) >> 8;
-		let Vy = (bytes & 0x00F0) >> 4;
-
-		this.Registers[Vx] = Vx & Vy;
-	}
-
-	/**
-	 * 8xy3 - XOR Vx, Vy
-	 * Set Vx = Vx XOR Vy.
-	 *
-	 * Performs a bitwise exclusive OR on the values of Vx and Vy, then stores the result in Vx. 
-	 * An exclusive OR compares the corrseponding bits from two values, and if the bits are not 
-	 * both the same, then the corresponding bit in the result is set to 1. Otherwise, it is 0.
-	 */
-	_8003(bytes) {
-		let Vx = (bytes & 0x0F00) >> 8;
-		let Vy = (bytes & 0x00F0) >> 4;
-
-		this.Registers[Vx] = Vx ^ Vy;
-	}
-
-	/**
-	 * 8xy4 - ADD Vx, Vy
-	 * Set Vx = Vx + Vy, set VF = carry.
-	 *
-	 * The values of Vx and Vy are added together. If the result is greater than 8 bits (i.e., > 255,) 
-	 * VF is set to 1, otherwise 0. Only the lowest 8 bits of the result are kept, and stored in Vx.
-	 */
-	_8004(bytes) {
-		let Vx = (bytes & 0x0F00) >> 8;
-		let Vy = (bytes & 0x00F0) >> 4;
-
-		this.Registers[0xF] = (Vx + Vy) >> 8;
-		this.Registers[Vx] = (Vx + Vy) & 0x00F;
-	}
-
-	/**
-	 * 8xy5 - SUB Vx, Vy
-	 * Set Vx = Vx - Vy, set VF = NOT borrow.
-	 *
-	 * If Vx > Vy, then VF is set to 1, otherwise 0. 
-	 * Then Vy is subtracted from Vx, and the results stored in Vx.
-	 */
-	_8005(bytes) {
-		let Vx = (bytes & 0x0F00) >> 8;
-		let Vy = (bytes & 0x0F00) >> 4;
-
-		this.Registers[0xF] = Vx > Vy ? 1 : 0;
-	}
-
-	/**
-	 * 8xy6 - SHR Vx {, Vy}
-	 * Set Vx = Vx SHR 1.
-	 *
-	 * If the least-significant bit of Vx is 1, then VF is set to 1, otherwise 0.
-	 * Then Vx is divided by 2.
-	 */
-	_8006(bytes) {
-		console.log(this.name);
-	}
-
-	/**
-	 * 8xy7 - SUBN Vx, Vy
-	 * Set Vx = Vy - Vx, set VF = NOT borrow.
-
-	 * If Vy > Vx, then VF is set to 1, otherwise 0. 
-	 * Then Vx is subtracted from Vy, and the results stored in Vx.
-	 */
-	_8007(bytes) {
-		let Vx = (bytes & 0x0F00) >> 8;
-		let Vy = (bytes & 0x00F0) >> 4;
-
-		console.log(this.name);
-	}
-
-	/**
-	 * 8xyE - SHL Vx {, Vy}
-	 * Set Vx = Vx SHL 1.
-	 *
-	 * If the most-significant bit of Vx is 1, then VF is set to 1, otherwise to 0. Then Vx is multiplied by 2.
-	 */
-	_800E(bytes) {
-		console.log(this.name);
 	}
 
 	/**
@@ -503,6 +491,7 @@ export class CPU {
 		console.log(this.name);
 	}
 
+	// TODO - fold all Fxxx instructions into a switch/case statement
 	/**
 	 * Fx07 - LD Vx, DT
 	 * Set Vx = delay timer value.
