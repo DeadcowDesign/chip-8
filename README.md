@@ -8,7 +8,7 @@ CHIP-8 is an interpreted programming language, developed by Joseph Weisbecker. I
 ## Technical Detail
 
 ### Overview and information
-This interpreter is built using vanilla  Javascript to ES6 standards. As such it has features which will not run on IE or Opera Mini, etc. As this is a personal project, note that I have no intention of building compatability for these browsers into this interpreter. Stop using IE.
+This interpreter is built using vanilla  Javascript to ES6 standards.
 
 ### Files
 _LICENSE_ - this software is distributed under GNU V3 license. If you use it, fork it, host it or whatever, attribution is not required, but it would be neato if you let me know. I'd like to know where it gets used.

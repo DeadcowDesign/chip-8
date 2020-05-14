@@ -1,14 +1,5 @@
 /**
  * Chip-8 interpreter
- * Note - Uint8Array creates an array of 8 bit integers.
- * Hex in JS is written as 0x000.
- * Information on Chip-8 from:
- * http://devernay.free.fr/hacks/chip8/C8TECH10.HTM
- * -----------------------------------------------------------------------------
- * Conversions:
- * 8 bits in 1 byte (so 0x00 = 0b00000000)
- * 1 byte range = 0-255 or (0b00000000 - 0b11111111) or (0x00 - 0xff)
- * 1024 bytes in a kilobyte
  */
 
 
@@ -29,10 +20,22 @@ console.log(p1);
 console.log(p2);
 
  */
+
+import { Display } from '../js/display.js';
+
 export class CPU {
 	constructor(arrayBuffer) {
+		let pressedKeys = {};
+		window.onkeyup = function (e) { pressedKeys[e.keyCode] = false; }
+		window.onkeydown = function (e) { pressedKeys[e.keyCode] = true; }
 
 		this.ArrayBuffer = arrayBuffer || null;
+
+		/**
+		 * The Chip-8 uses a 60Hz clock to decrement the SR and the DT.
+		 * I've added this as a var so it can be changed for debugging.
+		 */
+		this.Clockspeed = 60;
 
 		// Memory 4 kilobytes (4096 bytes). Note that programs should be loaded
 		// in from address 0x200 - some programs start at 0x600 (TODO: how to 
@@ -72,9 +75,18 @@ export class CPU {
 
 		this.MemoryDisplay = document.getElementById("memory");
 
-		this.Audio = new AudioContext();
+		this.Audio = new(window.AudioContext || window.webkitAudioContext)();;
+		this.Oscillator = audioCtx.createOscillator();
+		this.BeepVolume = 0.5;
+		this.BeepType = "square";
+		this.BeepFrequency = 270;
 
-		this.chars();
+		this.SRInterval = null;
+
+		this.Display = new Display();
+
+		this.initChars();
+		this.initAudio();
 		this.loadProgram();
 		this.run();
 		//this.displayMemory();
@@ -87,7 +99,7 @@ export class CPU {
 	 * 4 bits of each byte are used). The should be stored in
 	 * the interpreter memory from 0x00 to 0x1FF
 	 */
-	chars() {
+	initChars() {
 		let sprites = [
 			0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
 			0x20, 0x60, 0x20, 0x20, 0x70, // 1
@@ -133,13 +145,6 @@ export class CPU {
 		}
 	}
 
-	run() {
-
-		while (this.doInstruction()) {
-			this.PC++;
-		}
-	}
-
 	doInstruction() {
 		if (this.PC % 2 == 0) {
 			this.CurrentInstruction = this.Memory[this.PC];
@@ -154,24 +159,54 @@ export class CPU {
 		return false;
 	}
 
-	doSound(time) {
+	/**
+	 * initAudio - set up the beep noise for the Chip-8
+	 */
+	initAudio() {
+		let gainNode = audioCtx.createGain();
+	  
+		this.Oscillator.connect(gainNode);
+		gainNode.connect(audioCtx.destination);
+	  
+		gainNode.gain.value = this.BeepVolume;
+		this.Oscillator.frequency.value = this.BeepFrequency;
+		this.Oscillator.type = this.BeepType;
+	};
+
+	/**
+	 * startSR - set up the interval and start playing
+	 * @param {int} time The amount of time the beep should play for
+	 */
+	beep(time) {
 		this.SR = time;
-
-		while (this.SR > 0) {
-
-		}
+		this.SRInterval = setInterval(
+			function() {
+				if (self.SR > 0) {
+					self.startBeep();
+					self.SR--;
+				} else {
+					self.stopBeep();
+					clearInterval(self.SRInterval);
+				}
+			}, this.Clockspeed);
 	}
 
-	beep(vol, freq, duration) {
-		oscillator = this.Audio.createOscillator()
-		gain = this.Audio.createGain()
-		oscillator.connect(gain)
-		oscillator.frequency.value = freq
-		oscillator.type = "square"
-		gain.connect(this.Audio.destination)
-		gain.gain.value = vol * 0.01
-		oscillator.start(this.Audio.currentTime)
-		oscillator.stop(this.Audio.currentTime + duration * 0.001)
+	startBeep() {
+		this.Oscillator.start();
+	}
+
+	stopBeep() {
+		this.Oscillator.stop();
+	}
+
+	/**
+	 * Start the application
+	 */
+	run() {
+
+		while (this.doInstruction()) {
+			this.PC++;
+		}
 	}
 
 	/***************************************************************************
@@ -195,8 +230,7 @@ export class CPU {
    * Clear the display.
 	 */
 	_00E0() {
-		// TODO - attach to display
-		console.log(this.name);
+		this.Display.CLS();
 	}
 
 	/**
@@ -217,8 +251,8 @@ export class CPU {
 	 *
 	 * The interpreter sets the program counter to nnn.
 	 */
-	_1000(bytes) {
-		let nnn = bytes & 0x0FFF;
+	_1000(OpCode) {
+		let nnn = OpCode & 0x0FFF;
 		this.PC = nnn;
 	}
 
@@ -229,8 +263,8 @@ export class CPU {
 	 * The interpreter increments the stack pointer, then puts the current PC on the top of the stack. 
 	 * The PC is then set to nnn.
 	 */
-	_2000(bytes) {
-		let nnn = bytes & 0x0FFF;
+	_2000(OpCode) {
+		let nnn = OpCode & 0x0FFF;
 		this.SP++;
 		this.Stack[SP] = this.PC;
 		this.PC = nnn;
@@ -242,9 +276,9 @@ export class CPU {
 	 *
 	 * The interpreter compares register Vx to kk, and if they are equal, increments PC by 2.
 	 */
-	_3000(bytes) {
-		let Vx = this.Registers[(bytes & 0x0F00) >> 8];
-		let nn = bytes & 0x00FF;
+	_3000(OpCode) {
+		let Vx = this.Registers[(OpCode & 0x0F00) >> 8];
+		let nn = OpCode & 0x00FF;
 
 		if (Vx === nn) this.PC += 2;
 	}
@@ -255,12 +289,12 @@ export class CPU {
 	 *
 	 * The interpreter compares register Vx to kk, and if they are not equal, increments PC by 2.
 	 */
-	_4000(bytes) {
+	_4000(OpCode) {
 
-		let Vx = this.Registers[(bytes & 0x0F00) >> 8];
-		let nn = bytes & 0x00FF;
+		let Vx = this.Registers[(OpCode & 0x0F00) >> 8];
+		let nn = OpCode & 0x00FF;
 
-		if (Vx !== nn) this.PC += 2; console.log(this.name);
+		if (Vx !== nn) this.PC += 2;
 	}
 
 	/**
@@ -270,10 +304,10 @@ export class CPU {
 	 * The interpreter compares register Vx to register Vy, 
 	 * and if they are equal, increments the program counter by 2.
 	 */
-	_5000(bytes) {
+	_5000(OpCode) {
 
-		let Vx = this.Registers[(bytes & 0x0F00) >> 8];
-		let Vy = this.Registers[(bytes & 0x00F0) >> 4];
+		let Vx = this.Registers[(OpCode & 0x0F00) >> 8];
+		let Vy = this.Registers[(OpCode & 0x00F0) >> 4];
 
 		if (Vx === Vy) this.PC += 2;
 	}
@@ -284,9 +318,9 @@ export class CPU {
 	 *
 	 * The interpreter puts the value kk into register Vx.
 	 */
-	_6000(bytes) {
-		let Vx = (bytes & 0x0F00) >> 8;
-		let kk = (bytes & 0x00FF);
+	_6000(OpCode) {
+		let Vx = (OpCode & 0x0F00) >> 8;
+		let kk = (OpCode & 0x00FF);
 		this.Registers[Vx] = kk;
 	}
 
@@ -296,9 +330,9 @@ export class CPU {
 	 *
 	 * Adds the value kk to the value of register Vx, then stores the result in Vx.
 	 */
-	_7000(bytes) {
-		let Vx = this.Registers[(bytes & 0x0F00) >> 8];
-		let kk = (bytes & 0x00FF);
+	_7000(OpCode) {
+		let Vx = this.Registers[(OpCode & 0x0F00) >> 8];
+		let kk = (OpCode & 0x00FF);
 		this.Registers[Vx] = Vx + kk;
 	}
 
@@ -308,12 +342,12 @@ export class CPU {
 	 * All operation results are stored in Vx.
 	 * @param {Hex} bytes 
 	 */
-	_8000(bytes) {
+	_8000(OpCode) {
 
-		let option = bytes & 0x000F;
-		let VxPointer = (bytes & 0x0F00) >> 8;
-		let Vx = this.Registers[(bytes & 0x0F00) >> 8];
-		let Vy = this.Registers[(bytes & 0x00F0) >> 4];
+		let option = OpCode & 0x000F;
+		let VxPointer = (OpCode & 0x0F00) >> 8;
+		let Vx = this.Registers[(OpCode & 0x0F00) >> 8];
+		let Vy = this.Registers[(OpCode & 0x00F0) >> 4];
 
 		switch (option) {
 			/**
@@ -378,6 +412,7 @@ export class CPU {
 			 */
 			case 0x5:
 				this.Registers[0xF] = Vx > Vy ? 1 : 0;
+				this.Registers[VxPointer] = Vx - Vy;
 				break;
 			/**
 			 * 8xy6 - SHR Vx {, Vy}
@@ -387,6 +422,8 @@ export class CPU {
 			 * Then Vx is divided by 2.
 			 */
 			case 0x6:
+				this.Registers[0xF] = this.Regsiters[VxPointer] & 1;
+				this.Registers[VxPointer] = this.Register[VxPointer] >> 1;
 				break;
 			/**
 			* 8xy7 - SUBN Vx, Vy
@@ -395,18 +432,26 @@ export class CPU {
 			* Then Vx is subtracted from Vy, and the results stored in Vx.
 			*/
 			case 0x7:
+				this.Registers[0xF] = Vy > Vx ? 1 : 0;
+				this.Registers[VxPointer] = Vy - Vx;
 				break;
 			/**
 			 * 8xyE - SHL Vx {, Vy}
 			 * Set Vx = Vx SHL 1.
 			 *
-			 * If the most-significant bit of Vx is 1, then VF is set to 1, otherwise to 0. Then Vx is multiplied by 2.
+			 * If the most-significant bit of Vx is 1, then VF is set to 1, otherwise to 0. 
+			 * Store MSb in VF then shifts Vx << 1
+			 * Then Vx is multiplied by 2.
 			 */
 			case 0xE:
+				// TODO - Work out how to get MSb.
+				let MSB = (Vx >> 0).toString(2).padStart(2, "8")[0]; // This is a bit of a punt tbh...
+				this.Registers(0xF) = MSB;
+				this.Registers[VxPointer] = this.Registers[VxPointer] << 1;
 				break;
 			default:
-				throw new Error("Invalid Opcode out of bounds: 8nnX - X must be 0x0-0x7 or 0xE");
-				
+				throw new Error("Invalid Opcode out of bounds: " + OpCode.toString(16).padStart(4, "0"));
+
 		}
 
 	}
@@ -417,8 +462,10 @@ export class CPU {
 	 *
 	 * The values of Vx and Vy are compared, and if they are not equal, the program counter is increased by 2.
 	 */
-	_9000(bytes) {
-		console.log(this.name);
+	_9000(OpCode) {
+		let Vx = (OpCode & 0x0F00) >> 8;
+		let Vy = (OpCode & 0x00F0) >> 4;
+		if (this.Registers[Vx] !== this.Registers[Vy]) this.PC++;
 	}
 
 	/**
@@ -427,8 +474,8 @@ export class CPU {
 
 	 * The value of register I is set to nnn.
 	 */
-	_A000(bytes) {
-		console.log(this.name);
+	_A000(OpCode) {
+		this.I = (OpCode & 0x0FFF);
 	}
 
 	/**
@@ -437,8 +484,8 @@ export class CPU {
 	 *
 	 * The program counter is set to nnn plus the value of V0.
 	 */
-	_B000(bytes) {
-		console.log(this.name);
+	_B000(OpCode) {
+		this.PC = this.Regsiters[0x0] + (OpCode & 0x0FFF);
 	}
 
 	/**
@@ -449,8 +496,12 @@ export class CPU {
 	 * which is then ANDed with the value kk. The results are stored in Vx. 
 	 * See instruction 8xy2 for more information on AND.
 	 */
-	_C000(bytes) {
-		console.log(this.name);
+	_C000(OpCode) {
+		let rnd = Math.floor(Math.random() * 256);
+		let VxPointer = (OpCode & 0x0F00) >> 8;
+		let nn = OpCode & 0X00FF;
+
+		this.Registers[VxPointer] = rnd & nn;
 	}
 
 	/**
@@ -462,11 +513,20 @@ export class CPU {
 	 * Sprites are XORed onto the existing screen. If this causes any pixels to be erased, 
 	 * VF is set to 1, otherwise it is set to 0. If the sprite is positioned so part of it 
 	 * is outside the coordinates of the display, it wraps around to the opposite side of the screen. 
-	 * See instruction 8xy3 for more information on XOR, and section 2.4, Display, for more information 
-	 * on the Chip-8 screen and sprites.
 	 */
-	_D000(bytes) {
-		console.log(this.name);
+	_D000(OpCode) {
+		let Vx = (OpCode & 0x0F00) >> 8;
+		let Vy = (OpCode & 0x00F0) >> 4;
+		let len = (OpCode & 0x000F);
+		let sprite = new Uint8Array(15);
+		let memoryPointer = this.I;
+
+		for (let i = 0; i < len; i++) {
+			sprite[i] = this.Memory[memoryPointer];
+			memoryPointer++;
+		}
+
+		VF = this.Display.DRW(Vx, Vy, sprite);
 	}
 
 	/**
@@ -476,7 +536,7 @@ export class CPU {
 	 * Checks the keyboard, and if the key corresponding to the value of Vx is 
 	 * currently in the down position, PC is increased by 2.
 	 */
-	_E09E(bytes) {
+	_E09E(OpCode) {
 		console.log(this.name);
 	}
 
@@ -487,102 +547,110 @@ export class CPU {
 	 * Checks the keyboard, and if the key corresponding to the value of Vx is currently in the up position, 
 	 * PC is increased by 2.
 	 */
-	_E0A1(bytes) {
+	_E0A1(OpCode) {
 		console.log(this.name);
 	}
 
-	// TODO - fold all Fxxx instructions into a switch/case statement
-	/**
-	 * Fx07 - LD Vx, DT
-	 * Set Vx = delay timer value.
-	 *
-	 * The value of DT is placed into Vx.
-	 */
-	_F007(bytes) {
-		console.log(this.name);
-	}
+	_F000(OpCode) {
 
-	/**
-	 * Fx0A - LD Vx, K
-	 * Wait for a key press, store the value of the key in Vx.
-	 *
-	 * All execution stops until a key is pressed, then the value of that key is stored in Vx.
-	 */
-	_F00A(bytes) {
-		console.log(this.name);
-	}
+		let option = OpCode & 0x000F;
+		let VxPointer = (OpCode & 0x0F00) >> 8;
+		let Vx = this.Registers[(OpCode & 0x0F00) >> 8];
+		let Vy = this.Registers[(OpCode & 0x00F0) >> 4];
 
-	/**
-	 * Fx15 - LD DT, Vx
-	 * Set delay timer = Vx.
-	 *
-	 * DT is set equal to the value of Vx.
-	 */
-	_F015(bytes) {
-
-		console.log(this.name);
-	}
-
-	/**
-	 * Fx18 - LD ST, Vx
-	 * Set sound timer = Vx.
-	 *
-	 * ST is set equal to the value of Vx.
-	 */
-	_F018(bytes) {
-		console.log(this.name);
-	}
-
-	/**
-	 * Fx1E - ADD I, Vx
-	 * Set I = I + Vx.
-	 *
-	 * The values of I and Vx are added, and the results are stored in I.
-	 */
-	_F01E(bytes) {
-		console.log(this.name);
-	}
-
-	/**
-	 * Fx29 - LD F, Vx
-	 * Set I = location of sprite for digit Vx.
-	 *
-	 * The value of I is set to the location for the hexadecimal sprite corresponding to the value of Vx. 
-	 * See section 2.4, Display, for more information on the Chip-8 hexadecimal font.
-	 */
-	_F029(bytes) {
-		console.log(this.name);
-	}
-
-	/**
-	 * Fx33 - LD B, Vx
-	 * Store BCD representation of Vx in memory locations I, I+1, and I+2.
-	 *
-	 * The interpreter takes the decimal value of Vx, and places the hundreds digit in 
-	 * memory at location in I, the tens digit at location I+1, and the ones digit at location I+2.
-	 */
-	_F033(bytes) {
-		console.log(this.name);
-	}
-
-	/**
-	 * Fx55 - LD [I], Vx
-	 * Store registers V0 through Vx in memory starting at location I.
-	 *
-	 * The interpreter copies the values of registers V0 through Vx into memory, starting at the address in I.
-	 */
-	_F055(bytes) {
-		console.log(this.name);
-	}
-
-	/**
-	 * Fx65 - LD Vx, [I]
-	 * Read registers V0 through Vx from memory starting at location I.
-	 *
-	 * The interpreter reads values from memory starting at location I into registers V0 through Vx.
-	 *
-	 */
-	_F065(bytes) {
-		console.log(this.name);
+		switch (option) {
+			/**
+			 * Fx07 - LD Vx, DT
+			 * Set Vx = delay timer value.
+			 *
+			 * The value of DT is placed into Vx.
+			 */
+			case 0x07:
+				break;
+			
+			/**
+			 * Fx0A - LD Vx, K
+			 * Wait for a key press, store the value of the key in Vx.
+			 *
+			 * All execution stops until a key is pressed, then the value of that key is stored in Vx.
+			 */
+			case 0x0A:
+				break;
+			
+			/**
+			 * Fx15 - LD DT, Vx
+			 * Set delay timer = Vx.
+			 *
+			 * DT is set equal to the value of Vx.
+			 */
+			case 0x15:
+				break;
+			
+			/**
+			 * Fx18 - LD ST, Vx
+			 * Set sound timer = Vx.
+			 *
+			 * ST is set equal to the value of Vx.
+			 */
+			case 0x18:
+				break;
+			
+			/**
+			 * Fx1E - ADD I, Vx
+			 * Set I = I + Vx.
+			 *
+			 * The values of I and Vx are added, and the results are stored in I.
+			 */
+			case 0x1E:
+				break;
+			
+			/**
+			 * Fx29 - LD F, Vx
+			 * Set I = location of sprite for digit Vx.
+			 *
+			 * The value of I is set to the location for the hexadecimal sprite 
+			 * corresponding to the value of Vx. 
+			 */
+			case 0x29:
+				break;
+			
+			/**
+			 * Fx33 - LD B, Vx
+			 * Store BCD representation of Vx in memory locations I, I+1, and I+2.
+			 *
+			 * The interpreter takes the decimal value of Vx, and places the hundreds digit in 
+			 * memory at location in I, the tens digit at location I+1, and the ones digit at 
+			 * location I+2.
+			 */
+			case 0x33:
+				break;
+			
+			/**
+			 * Fx55 - LD [I], Vx
+			 * Store registers V0 through Vx in memory starting at location I.
+			 *
+			 * The interpreter copies the values of registers V0 through Vx into memory, 
+			 * starting at the address in I.
+			 */
+			case 0x55:
+				break;
+			
+			/**
+			 * Fx65 - LD Vx, [I]
+			 * Read registers V0 through Vx from memory starting at location I.
+			 *
+			 * The interpreter reads values from memory starting at location I into registers 
+			 * V0 through Vx.
+			 *
+			 */
+			case 0x65:
+				break;
+			
+			/**
+			 * If OpCode is not listed above then for the Chip-8 instruction set it is invalid
+			 */
+			default:
+				throw new Error("Invalid Opcode out of bounds: " + OpCode.toString(16).padStart(4, "0"));
+		}
 	}
 }

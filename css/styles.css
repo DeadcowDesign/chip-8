@@ -35,10 +35,9 @@ tr {
 }
 
 .display {
-    display: block;
-    width: 64px;
-    height: 32px;
-    border: 1px solid red;
+    display: grid;
+    grid-template-columns: repeat(64, 5px);
+    grid-template-rows: repeat(32, 5px);
 }
 
 .raw-dump {
@@ -55,10 +54,9 @@ tr {
     grid-template-columns: repeat(16, 1fr);
 }
 .pixel {
+    display: block;
     min-width: 5px;
     min-height: 5px;
-}
-.pixel.off {
     background-color: black;
 }
 
