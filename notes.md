@@ -38,7 +38,11 @@ mask 0xF000 in Binary is 1111|0000|0000|0000
 ### Display
 64x32 labelled 0,0 in the top left to 63,31 bottom right. Pixels are xor for collisions. Display wraps.
 
-Sprites are 8x15 pixels. 15x1 bytes. See interpreter.js Dxyn function for details.
+Sprites are 8x15 pixels. 1x15 bytes. See interpreter.js Dxyn function for details.
+
+Convert a Hex byte to a string array of 1s and 0s:
+
+<pre>(0xF0.toString(2).split(''))</pre>
 
 ### General
 
@@ -49,6 +53,11 @@ Also Uint16Array and Uint32Array
 
 Hex is written as 0x0[...]
 Binary is written as 0b0[...]
+
+## Memory Map
+0x000-0x1FF - Chip 8 interpreter (contains font set in emu)
+0x050-0x0A0 - Used for the built in 4x5 pixel font set (0-F)
+0x200-0xFFF - Program ROM and work RAM
 
 ### Conversions:
 b = bit

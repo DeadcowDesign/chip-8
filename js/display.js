@@ -12,7 +12,8 @@ export class Display {
         this.display = [];
         this.displayContainer = document.getElementById("display");
         this.pixels = null;
-        this.initializeDisplay();
+        this.width = 64;
+        this.height = 32;
     }
 
     /**
@@ -20,29 +21,24 @@ export class Display {
      */
     initializeDisplay() {
         let row = 0;
-        let rows = [];
-        while (row < 32) {
-            let cols = [];
-
+        while (row < this.height) {
             let col = 0;
 
-            while (col < 64) {
-
-                cols[col] = 0;
-
-                col++
+            while (col < this.width) {
 
                 let pixel = document.createElement("span");
                 pixel.classList.add("pixel");
+                pixel.setAttribute("data-coord", col + "," + row);
                 this.displayContainer.appendChild(pixel);
-            };
+                col++
 
-            rows[row] = cols;
+            };
 
             row++;
         }
-        
-        this.pixels = document.getElementsByClassName("pixel");
+        this.pixels = document.getElementsByClassName('pixel');
+        console.log("Display booted");
+        return true;
     }
 
     /**
@@ -50,7 +46,7 @@ export class Display {
      * turning the display to it's "off" colour.
      */
     CLS() {
-
+        console.log(this.pixels);
         for(const pixel of this.pixels) {
             pixel.classList.remove("on");
         }
@@ -62,8 +58,47 @@ export class Display {
      * they should loop to the opposite edge of the display.
      */
     DRW(x, y, sprite) {
+        console.log(x);
+        console.log(y);
+        console.log(sprite);
+        let cX = x;
+        let cY = y;
+        let self = this;
         let collisionFlag = false;
 
+        // Split our sprite into rows
+        for (const row of sprite) {
+            cX = x;
+            // Convert row byte into binary and then split to give pixel
+            // values
+            let cols = row.toString(2).padStart(8, "0").split("");
+            // Loop through the bits in the row
+            cols.forEach(function (bit, index) {
+                if (cX > self.width) {
+                    cX = 0;
+                }
+
+                let pixel = document.querySelectorAll(`[data-coord="${cX},${cY}"]`)[0];
+                
+                if (pixel.classList.contains('on')) {
+                    collisionFlag = true;
+                };
+
+                if (bit === "1") { 
+                    pixel.classList.add("on");
+                } else {
+                    pixel.classList.remove("on");
+                }
+
+                cX++;
+            });
+
+            cY++;
+
+            if (cY > this.height) {
+                cY = 0;
+            }
+        }
         return collisionFlag;
     }
 }

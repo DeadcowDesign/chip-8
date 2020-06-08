@@ -34,6 +34,14 @@ tr {
     height: 50vh;
 }
 
+.chip-container {
+    position: relative;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 100%;
+    height: 50vh;
+}
+
 .display {
     display: grid;
     grid-template-columns: repeat(64, 5px);

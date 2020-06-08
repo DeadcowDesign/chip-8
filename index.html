@@ -22,19 +22,22 @@
 			</div>
 		</div>
 	</div>
-	<div class="cpu">
-		<h3>Memory</h3>
-		<div id="memory" class="output memory">
-
+	<div class="chip-container">
+		<div class="cpu-container">
+			<h3>Memory</h3>
+			<div id="memory" class="output memory"></div>
+		</div>
+		<div class="display-container">
+			<h3>Display</h3>
+			<div class="display" id="display"></div>
 		</div>
 	</div>
-	<h3>Display</h3>
-	<div class="display" id="display"></div>
+
 	<script type="module">
 
 		import {Main} from './js/main.js';
 
-		let chip8 = new Main();
+		var chip8 = new Main();
 	</script>
 </body>
 
