@@ -37,15 +37,17 @@ tr {
 .chip-container {
     position: relative;
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 15% 1fr;
     grid-template-rows: 100%;
     height: 50vh;
 }
 
 .display {
-    display: grid;
+    width: calc(64*5px);
+    height: calc(32*5px);
+    /*display: grid;
     grid-template-columns: repeat(64, 5px);
-    grid-template-rows: repeat(32, 5px);
+    grid-template-rows: repeat(32, 5px);*/
 }
 
 .raw-dump {
@@ -70,4 +72,38 @@ tr {
 
 .pixel.on {
     background-color: white;
+}
+
+#button {
+    background-color: red;
+    background: radial-gradient(ellipse at 20% 30%, #fff 0%, #fa604e 10%,#cf0404 100%);
+    color: white;
+    font-weight: bold;
+    font-size: 18px;
+    height: 80px;
+    width: 80px;
+    border-radius: 100%;
+    box-shadow: 5px 5px 5px hsla(51, 100%, 30%, 0.8);
+    margin: 15px;
+    border: none;
+}
+
+#button:active {
+    height: 70px;
+    width: 70px;
+    font-size: 16px;
+    margin: 20px;
+    box-shadow: 2px 2px 1px hsla(51, 100%, 30%, 0.8);
+}
+
+button:focus{
+    outline: 0;
+}
+.button-container {
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    background-color: hsl(51, 100%, 50%);
+    border: 5px outset hsl(51, 100%, 70%);
+    z-index: 2;
 }

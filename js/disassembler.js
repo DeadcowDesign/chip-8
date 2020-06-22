@@ -110,6 +110,9 @@ export class Disassembler {
         instructionTable.innerHTML = "";
         let tableRow = document.createElement("tr");
         let tableCell = document.createElement("th");
+        tableCell.innerText = "Memory Location";
+        tableRow.appendChild(tableCell);
+        tableCell = document.createElement("th");
         tableCell.innerText = "Instruction";
         tableRow.appendChild(tableCell);
         tableCell = document.createElement("th");
@@ -121,6 +124,7 @@ export class Disassembler {
         fileContent.appendChild(lineString);
         lineNo++;
         let rawSpan = null;
+        let memloc = 0x200;
         for (var i = 0; i < this.arrayBuffer.length; i++) {
             if (i % 2 == 0) {
                 tmpByte = this.arrayBuffer[i];
@@ -132,6 +136,9 @@ export class Disassembler {
                 let rowNode = document.createElement('tr');
                 rowNode.setAttribute("data-target", `ins-${i}`);
                 let cellNode = document.createElement("td");
+                cellNode.innerText = (memloc + i - 1).toString(16).padStart(3,"0");
+                rowNode.appendChild(cellNode);
+                cellNode = document.createElement("td");
                 cellNode.innerText = instruction.rawCode;
                 rowNode.appendChild(cellNode);
                 cellNode = document.createElement("td");

@@ -7,49 +7,50 @@
  * top left to bottom right.
  */
 export class Display {
-    
-    constructor() {
-        this.display = [];
-        this.displayContainer = document.getElementById("display");
-        this.pixels = null;
-        this.width = 64;
-        this.height = 32;
+    constructor(h, w, bgCol, pxCol) {
+        this.displayBuffer = [];    // An array that holds the pixel values for the display
+        this.displayCanvas = document.getElementById("display");
+        this.display = this.displayCanvas.getContext("2d");
+        this.w = w || 64;
+        this.h = h || 32;
+        this.bgCol = bgCol || "#000";
+        this.pxCol = pxCol || "#FFF";
+        this.pxW = this.displayCanvas.width / this.w;
+        this.pxH = this.displayCanvas.height / this.h;
+        this.collisionFlag = false;
     }
 
     /**
-     * initializeDisplay - set up the display pixels and create the array.
+     * init - initialise the canvas for first draw. Clear the display buffer
+     * and fill the canvas with the background colour.
      */
     initializeDisplay() {
-        let row = 0;
-        while (row < this.height) {
-            let col = 0;
 
-            while (col < this.width) {
+        // Set up the screen buffer
+        for (let rows = 0; rows < this.h; rows++) {
 
-                let pixel = document.createElement("span");
-                pixel.classList.add("pixel");
-                pixel.setAttribute("data-coord", col + "," + row);
-                this.displayContainer.appendChild(pixel);
-                col++
+            let tmpRow = [];
+            for (let cols = 0; cols < this.w; cols++) {
+                tmpRow.push(0);
+            }
 
-            };
-
-            row++;
+            this.displayBuffer.push(tmpRow);
         }
-        this.pixels = document.getElementsByClassName('pixel');
+
+        this.display.fillStyle = this.bgCol;
+        this.display.fillRect(0,0,this.displayCanvas.width,this.displayCanvas.height);
+        this.collisionFlag = false;
         console.log("Display booted");
         return true;
     }
 
     /**
      * CLS - clear the display. Remove the "on" class from any pixel that may have it
-     * turning the display to it's "off" colour.
+     * turning the display to it's "off" colour. This is the same process as initializing
+     * so we just call that function
      */
     CLS() {
-        console.log(this.pixels);
-        for(const pixel of this.pixels) {
-            pixel.classList.remove("on");
-        }
+        this.initializeDisplay();
     }
 
     /**
@@ -58,47 +59,66 @@ export class Display {
      * they should loop to the opposite edge of the display.
      */
     DRW(x, y, sprite) {
-        console.log(x);
-        console.log(y);
-        console.log(sprite);
-        let cX = x;
-        let cY = y;
-        let self = this;
-        let collisionFlag = false;
 
-        // Split our sprite into rows
-        for (const row of sprite) {
-            cX = x;
-            // Convert row byte into binary and then split to give pixel
-            // values
-            let cols = row.toString(2).padStart(8, "0").split("");
-            // Loop through the bits in the row
-            cols.forEach(function (bit, index) {
-                if (cX > self.width) {
-                    cX = 0;
-                }
-
-                let pixel = document.querySelectorAll(`[data-coord="${cX},${cY}"]`)[0];
-                
-                if (pixel.classList.contains('on')) {
-                    collisionFlag = true;
-                };
-
-                if (bit === "1") { 
-                    pixel.classList.add("on");
-                } else {
-                    pixel.classList.remove("on");
-                }
-
-                cX++;
-            });
-
-            cY++;
-
-            if (cY > this.height) {
-                cY = 0;
-            }
+        if (this._spriteToBuffer(x,y,sprite)) {
+            this._bufferToCanvas();
         }
-        return collisionFlag;
+    }
+
+    /**
+     * spriteToBuffer - dump the sprite data into a display buffer
+     * @param {*} x 
+     * @param {*} y 
+     * @param {*} sprite 
+     */
+    _spriteToBuffer(x, y, sprite) {
+        //console.log("Buffering");
+        let currY = y;
+
+        for (let byte of sprite ) {
+
+            let bits = byte.toString(2).padStart(8, "0").split("").map(x => parseInt(x));
+            
+            let currX = x;
+
+            for (let bit of bits) {
+                try {
+                    let currBit = this.displayBuffer[currY][currX];
+
+                    if (bit === currBit) {
+                        this.collisionFlag = true;
+                    }
+
+                    this.displayBuffer[currY][currX] = bit ^ currBit;
+                } catch (Err) {
+                    //console.log("Out of bounds display: x" + currX +", y" + currY );
+                }
+
+                    currX++;
+            }
+
+            currY++
+        }
+
+        return true;
+    }
+
+    _bufferToCanvas() {
+        //console.log("Drawing");
+        //console.log(typeof(this.displayBuffer));
+        this.displayBuffer.forEach((row, rowIndex) => {
+            
+            row.forEach((col, colIndex) => {
+                let startX = colIndex * this.pxW;
+                let startY = rowIndex * this.pxH;
+                let endX = startX + this.pxW;
+                let endY = startY + this.pxH;
+
+                this.display.fillStyle = col ? this.pxCol : this.bgCol;
+                this.display.fillRect(startX, startY, endX, endY);
+            })
+        });
+
+        
     }
 }

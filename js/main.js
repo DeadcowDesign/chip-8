@@ -3,11 +3,12 @@ import { CPU } from './interpreter.js';
 
 export class Main {
 
-    constructor() {
+    constructor(debug) {
         let self = this;
         this.disassembler = null;
         this.cpu = null;
         this.arrayBuffer = null;
+        this.debug = debug || false;
         this.input = document.getElementById("file-input");
         this.input.addEventListener("change", function (e) { self.readSingleFile(e); }, false);
 
@@ -36,7 +37,10 @@ export class Main {
     };
     
     postLoad() {
-        this.disassembler = new Disassembler(this.arrayBuffer);
-        this.cpu = new CPU(this.arrayBuffer);
+        if (this.debug == true) {
+            this.disassembler = new Disassembler(this.arrayBuffer)
+        } else {
+            this.cpu = new CPU(this.arrayBuffer, this.debug)
+        };
     };
 }

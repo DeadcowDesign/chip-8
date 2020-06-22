@@ -13,10 +13,27 @@
 	<div class="button-container">
 		<button id="button">STOP</button>
 	</div>
+
+	<div class="debug-container">
+		<div class="raw-dump">
+			<h3>Raw Hex Dump</h3>
+			<div id="file-content" class="output"></div>
+		</div>
+		<div class="instructions">
+			<h3>Instructions</h3>
+			<div id="instructions" class="output">
+				<table id="instructiontable"></table>
+			</div>
+		</div>
+	</div>
 	<div class="chip-container">
+		<div class="cpu-container">
+			<h3>Memory</h3>
+			<div id="memory" class="output memory"></div>
+		</div>
 		<div class="display-container">
 			<h3>Display</h3>
-			<canvas class="display" id="display"></canvas>
+			<div class="display" id="display"></div>
 		</div>
 	</div>
 
@@ -28,7 +45,7 @@
 		});
 		import {Main} from './js/main.js';
 
-		chip8 = new Main();
+		chip8 = new Main(true);
 	</script>
 </body>
 

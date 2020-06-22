@@ -24,7 +24,7 @@ console.log(p2);
 import { Display } from '../js/display.js';
 
 export class CPU {
-	constructor(arrayBuffer) {
+	constructor(arrayBuffer, debug) {
 		let self = this;
 
 		this.PressedKeys = [];
@@ -96,9 +96,10 @@ export class CPU {
 		this.initChars();
 		this.initAudio();
 		this.loadProgram();
-		this.displayMemory();
+		//this.displayMemory();
 
-		if (this.Display.initializeDisplay() == true) {
+		if (this.Display.initializeDisplay() == true && debug == false) {
+			console.log("Running");
 			this.run();
 		}
 	}
@@ -225,15 +226,20 @@ export class CPU {
 	}
 
 	run() {
-		console.log("Running");
-		while(this.PC < this.Memory.length) {
-			this.doInstruction();
+		let self = this;
+		function tick() {
+			window.setTimeout(function(){
+				self.doInstruction();
+				window.requestAnimationFrame(tick);
+			}, 1000/self.Clockspeed);
 		}
+
+		tick();
 	}
 
 	getInstruction() {
 		
-		let opCode = (this.Memory[this.PC] << 8) + this.Memory[this.PC+1];
+		let opCode = (this.Memory[this.PC] << 8) | this.Memory[this.PC + 1];
 		let func = "_" + (opCode & 0xF000).toString(16).padStart(4, "0").toUpperCase();
 
 		return {"opCode": opCode, "func": func}
@@ -241,8 +247,6 @@ export class CPU {
 
 	doInstruction() {
 		let instruction = this.getInstruction();
-		console.log("Function: " + instruction.func + ", opCode: " + instruction.opCode.toString(16));
-		this.PC += 2;
 		return this[instruction.func](instruction.opCode);
 
 	}
@@ -267,6 +271,7 @@ export class CPU {
 	 		 */
 			case 0xE0:
 				this.Display.CLS();
+				this.PC += 2 & 0x0FFF;
 			break;
 			/**
 			 * 00EE - RET
@@ -276,8 +281,9 @@ export class CPU {
 			 * then subtracts 1 from the stack pointer.
 			 */
 			case 0xEE:
-				this.PC = this.Stack(this.SP);
+				this.PC = this.Stack[this.SP];
 				this.SP--;
+				this.PC += 2 & 0x0FFF;
 			break;
 		}
 
@@ -322,6 +328,8 @@ export class CPU {
 		let nn = OpCode & 0x00FF;
 
 		if (Vx === nn) this.PC += 2;
+
+		this.PC += 2 & 0x0FFF;
 		return true;
 	}
 
@@ -337,6 +345,8 @@ export class CPU {
 		let nn = OpCode & 0x00FF;
 
 		if (Vx !== nn) this.PC += 2;
+
+		this.PC += 2 & 0x0FFF;
 		return true;
 	}
 
@@ -353,6 +363,8 @@ export class CPU {
 		let Vy = this.Registers[(OpCode & 0x00F0) >> 4];
 
 		if (Vx === Vy) this.PC += 2;
+
+		this.PC += 2 & 0x0FFF;
 		return true;
 	}
 
@@ -366,6 +378,7 @@ export class CPU {
 		let Vx = (OpCode & 0x0F00) >> 8;
 		let kk = (OpCode & 0x00FF);
 		this.Registers[Vx] = kk;
+		this.PC += 2 & 0x0FFF;
 		return true;
 	}
 
@@ -379,6 +392,7 @@ export class CPU {
 		let Vx = (OpCode & 0x0F00) >> 8;
 		let kk = (OpCode & 0x00FF);
 		this.Registers[Vx] = this.Registers[Vx] + kk;
+		this.PC += 2 & 0x0FFF;
 		return true;
 	}
 
@@ -404,6 +418,7 @@ export class CPU {
 			 */
 			case 0x0:
 				this.Registers[VxPointer] = Vy;
+				this.PC += 2 & 0x0FFF;
 				break;
 			/**
 			 * 8xy1 - OR Vx, Vy
@@ -415,6 +430,7 @@ export class CPU {
 			 */
 			case 0x1:
 				this.Registers[VxPointer] = Vx | Vy;
+				this.PC += 2 & 0x0FFF;
 				break;
 			/**
 			 * 8xy2 - AND Vx, Vy
@@ -426,6 +442,7 @@ export class CPU {
 			 */
 			case 0x2:
 				this.Registers[VxPointer] = Vx & Vy;
+				this.PC += 2 & 0x0FFF;
 				break;
 			/**
 			 * 8xy3 - XOR Vx, Vy
@@ -437,6 +454,7 @@ export class CPU {
 			 */
 			case 0x3:
 				this.Registers[VxPointer] = Vx ^ Vy;
+				this.PC += 2 & 0x0FFF;
 				break;
 			/**
 			 * 8xy4 - ADD Vx, Vy
@@ -448,6 +466,7 @@ export class CPU {
 			case 0x4:
 				this.Registers[0xF] = (Vx + Vy) >> 8;
 				this.Registers[VxPointer] = (Vx + Vy) & 0x0FF;
+				this.PC += 2 & 0x0FFF;
 				break;
 			/**
 			 * 8xy5 - SUB Vx, Vy
@@ -459,6 +478,7 @@ export class CPU {
 			case 0x5:
 				this.Registers[0xF] = Vx > Vy ? 1 : 0;
 				this.Registers[VxPointer] = Vx - Vy;
+				this.PC += 2 & 0x0FFF;
 				break;
 			/**
 			 * 8xy6 - SHR Vx {, Vy}
@@ -470,6 +490,7 @@ export class CPU {
 			case 0x6:
 				this.Registers[0xF] = this.Registers[VxPointer] & 1;
 				this.Registers[VxPointer] = this.Registers[VxPointer] >> 1;
+				this.PC += 2 & 0x0FFF;
 				break;
 			/**
 			* 8xy7 - SUBN Vx, Vy
@@ -480,6 +501,7 @@ export class CPU {
 			case 0x7:
 				this.Registers[0xF] = Vy > Vx ? 1 : 0;
 				this.Registers[VxPointer] = Vy - Vx;
+				this.PC += 2 & 0x0FFF;
 				break;
 			/**
 			 * 8xyE - SHL Vx {, Vy}
@@ -490,11 +512,12 @@ export class CPU {
 			 * Then Vx is multiplied by 2.
 			 */
 			case 0xE:
-				// TODO - Work out how to get MSb.
 				let MSB = (Vx >> 0).toString(2).padStart(2, "8")[0]; // This is a bit of a punt tbh...
 				this.Registers[0xF] = MSB;
 				this.Registers[VxPointer] = this.Registers[VxPointer] << 1;
+				this.PC += 2 & 0x0FFF;
 				break;
+
 			default:
 				throw new Error("Invalid Opcode out of bounds: " + OpCode.toString(16).padStart(4, "0"));
 		}
@@ -511,7 +534,8 @@ export class CPU {
 	_9000(OpCode) {
 		let Vx = (OpCode & 0x0F00) >> 8;
 		let Vy = (OpCode & 0x00F0) >> 4;
-		if (this.Registers[Vx] !== this.Registers[Vy]) this.PC++;
+		if (this.Registers[Vx] !== this.Registers[Vy]) this.PC += 2;
+		this.PC += 2 & 0x0FFF;
 		return true;
 
 	}
@@ -524,8 +548,8 @@ export class CPU {
 	 */
 	_A000(OpCode) {
 		this.I = (OpCode & 0x0FFF);
+		this.PC += 2 & 0x0FFF;
 		return true;
-
 	}
 
 	/**
@@ -554,6 +578,7 @@ export class CPU {
 		let nn = OpCode & 0X00FF;
 
 		this.Registers[VxPointer] = rnd & nn;
+		this.PC += 2 & 0x0FFF;
 		return true;
 
 	}
@@ -585,6 +610,7 @@ export class CPU {
 		//console.log(sprite);
 
 		this.VF = this.Display.DRW(x, y, sprite);
+		this.PC += 2 & 0x0FFF;
 		return true;
 
 	}
@@ -606,8 +632,10 @@ export class CPU {
 				if (Vx in this.PressedKeys) {
 
 					if (this.PressedKeys[Vx] === true) {
-						this.PC++
+						this.PC += 2;
 					}
+
+					this.PC += 2 & 0x0FFF;
 				}
 				break;
 			/**
@@ -621,13 +649,15 @@ export class CPU {
 				if (!Vx in this.PressedKeys) {
 			
 					if (this.PressedKeys[Vx] === true) {
-						this.PC++
+						this.PC += 2 & 0x0FFF;
 					}
 				} else {
 					if (this.PressedKeys[Vx] === false) {
-						this.PC++
+						this.PC += 2 & 0x0FFF;
 					}
 				}
+
+				this.PC += 2 & 0x0FFF;
 				break;
 		}
 
@@ -650,6 +680,7 @@ export class CPU {
 			 */
 			case 0x07:
 				this.Registers[VxPointer] = this.DT;
+				this.PC += 2 & 0x0FFF;
 				break;
 			
 			/**
@@ -660,6 +691,7 @@ export class CPU {
 			 * TODO - work out how the hell to pause while I wait for a key press.
 			 */
 			case 0x0A:
+				this.PC += 2 & 0x0FFF;
 				break;
 			
 			/**
@@ -670,6 +702,7 @@ export class CPU {
 			 */
 			case 0x15:
 				this.DT = Vx;
+				this.PC += 2 & 0x0FFF;
 				break;
 			
 			/**
@@ -680,6 +713,7 @@ export class CPU {
 			 */
 			case 0x18:
 				this.ST = Vx;
+				this.PC += 2 & 0x0FFF;
 				break;
 			
 			/**
@@ -690,6 +724,7 @@ export class CPU {
 			 */
 			case 0x1E:
 				this.I = this.I + Vx;
+				this.PC += 2 & 0x0FFF;
 				break;
 			
 			/**
@@ -701,6 +736,7 @@ export class CPU {
 			 */
 			case 0x29:
 				this.I = Vx * 0x5;
+				this.PC += 2 & 0x0FFF;
 				break;
 			
 			/**
@@ -712,6 +748,19 @@ export class CPU {
 			 * location I+2.
 			 */
 			case 0x33:
+				console.log(Vx);
+				let hundreds = parseInt(Vx/100, 10);
+				let remainder = Vx % 100;
+				let tens = parseInt(remainder / 10, 10);
+				let ones = remainder % 10;
+				//console.log(hundreds + " " + tens + " " + ones);
+				this.Memory[this.I] = hundreds;
+				this.Memory[this.I+1] = tens;
+				this.Memory[this.I+2] = ones;
+				//console.log(this.Memory[this.I]);
+				//console.log(this.Memory[this.I+1]);
+				//console.log(this.Memory[this.I+2]);
+				this.PC += 2 & 0x0FFF;
 				break;
 			
 			/**
@@ -722,6 +771,18 @@ export class CPU {
 			 * starting at the address in I.
 			 */
 			case 0x55:
+
+				for(let i = 0; i <= Vx; ++i) {
+					this.Memory[this.I + i] = this.Registers[i];
+
+					console.log("Register: " + this.Registers[i]);
+					console.log("Memory Position: " + (this.I + i).toString(16).padStart(4, "0"));
+					console.log("Memory:" + this.Memory[this.I + i]);
+				}
+
+				//this.I += Vx + 1;
+
+				this.PC += 2 & 0x0FFF;
 				break;
 			
 			/**
@@ -733,14 +794,20 @@ export class CPU {
 			 *
 			 */
 			case 0x65:
+				let regCount = this.I;
+
+				for(let i = 0; i < Vx+1; i++) {
+					this.Registers[regCount] = this.Memory[i];
+					regCount++;
+				}
+				this.PC += 2 & 0x0FFF;
 				break;
 			
 			/**
 			 * If OpCode is not listed above then for the Chip-8 instruction set it is invalid
 			 */
 			default:
-				//throw new Error("Invalid Opcode out of bounds: " + OpCode.toString(16).padStart(4, "0"));
-				break;
+				throw new Error("Invalid Opcode out of bounds: " + OpCode.toString(16).padStart(4, "0"));
 		}
 		return true;
 	}
