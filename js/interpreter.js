@@ -43,14 +43,14 @@ export class CPU {
 		// Memory 4 kilobytes (4096 bytes). Note that programs should be loaded
 		// in from address 0x200 - some programs start at 0x600 (TODO: how to 
 		// tell the difference?)
-		this.Memory = new Uint8Array(4096);
+		this.Memory = new Uint8Array(0xFFF);
 
 		// Registers - 16 8-bit registers labelled Vx where x = hex register
 		// value 0-f
-		this.Registers = new Uint8Array(16);
+		this.Registers = new Uint8Array(0xF);
 
 		// Stack
-		this.Stack = new Uint16Array(16);
+		this.Stack = new Uint16Array(0xFF);
 
 		// Special register I
 		this.I = 0x00;
